@@ -820,7 +820,7 @@
                     ctx.fillStyle = "#2c3e50"; ctx.fillRect(0,0,600,400); 
                     ctx.fillStyle = "#a93226"; ctx.fillRect(100, 100, 400, 300); 
                     ctx.fillStyle = "#f1c40f"; ctx.fillRect(120, 120, 30, 80); ctx.fillRect(450, 120, 30, 80);
-                    drawText("BOTTLEWORKS", 300, 80, 20, "center", "#f1c40f");
+                    drawText("BOTTLEWORKS HOTEL", 300, 80, 20, "center", "#f1c40f");
                 }
                 else if (currentCity.type === "dunes") {
                     ctx.fillStyle = "#85c1e9"; ctx.fillRect(0,0,600,400);
@@ -883,8 +883,6 @@
                     ctx.fillStyle = "#1e8449"; ctx.fillRect(230, 50, 140, 40);
                     ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(230, 50, 140, 40);
                     drawText("Bourbon St", 300, 78, 12, "center", "white");
-                    
-                    drawText("JAZZ NIGHT", 300, 120, 15, "center", "#f1c40f");
                 }
 
                 drawWelcomeSign(300, 200, currentCity.name);
@@ -1079,6 +1077,28 @@
                 }
                 break;
 
+            case STATES.FUTURE_HOME:
+                ctx.fillStyle = "#87ceeb"; ctx.fillRect(0,0,600,400); // Sky
+                ctx.fillStyle = "#2ecc71"; ctx.fillRect(0, 300, 600, 100); // Grass
+                
+                // House
+                ctx.fillStyle = "#fdfefe"; ctx.fillRect(200, 200, 200, 150); // Body
+                ctx.fillStyle = "#a93226"; ctx.beginPath(); ctx.moveTo(180, 200); ctx.lineTo(300, 100); ctx.lineTo(420, 200); ctx.fill(); // Roof
+                // Door
+                ctx.fillStyle = "#5d4037"; ctx.fillRect(280, 280, 40, 70);
+                // Windows
+                ctx.fillStyle = "#87ceeb"; ctx.fillRect(220, 230, 40, 40); ctx.fillRect(340, 230, 40, 40);
+                
+                // Mailbox
+                ctx.fillStyle = "#555"; ctx.fillRect(450, 300, 5, 50); // Post
+                ctx.fillStyle = "#fff"; ctx.fillRect(440, 290, 30, 15); // Box
+                drawText("The DelBeckers", 450, 280, 8, "center", "#000");
+
+                drawText("LEVEL UNLOCKED:", 300, 50, 20, "center", "#000");
+                drawText("Our Next Chapter", 300, 80, 20, "center", "#000");
+                drawText("Press Right >", 300, 380, 10, "center", "#333");
+                break;
+
             case STATES.FINAL_HINT:
                 ctx.fillStyle = "#000"; ctx.fillRect(0,0,600,400);
                 drawText("TO BE CONTINUED...", 300, 180, 25, "center", "white");
@@ -1091,9 +1111,7 @@
         const hideHudStates = [ STATES.START, STATES.TINDER, STATES.MATCHED, STATES.DATING_TACOS, STATES.DATING_PUB, STATES.DATING_YELLOW ];
         if (!hideHudStates.includes(currentState)) {
              drawText("MB", 20, 30, 15, "left", "#fff");
-             // Adjusted Y coord for alignment (was 24, now 18 to center vertically)
              drawPixelHeart(60, 18, 3); 
-             // Adjusted X coord for spacing (was 85, now 80 to tighten gap)
              drawText("VD", 80, 30, 15, "left", "#fff"); 
         }
 
