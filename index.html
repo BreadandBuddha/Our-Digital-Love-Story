@@ -617,8 +617,8 @@
         // STATE RENDERER
         switch(currentState) {
             case STATES.START:
-                drawText("THE STORY OF US", 300, 120, 35, "center", "#fff");
-                drawText("A Digital Love Story", 300, 160, 15, "center", "#aaa");
+                drawText("THE DELBECKERS", 300, 120, 35, "center", "#fff");
+                drawText("DIGITAL ADVENTURE", 300, 160, 15, "center", "#aaa");
                 drawMale(220, 250, 3); drawFemale(380, 250, 3);
                 if (frame % 60 < 30) drawText("PRESS ENTER ( > )", 300, 350, 20, "center", "#f1c40f");
                 break;
@@ -1111,7 +1111,9 @@
         const hideHudStates = [ STATES.START, STATES.TINDER, STATES.MATCHED, STATES.DATING_TACOS, STATES.DATING_PUB, STATES.DATING_YELLOW ];
         if (!hideHudStates.includes(currentState)) {
              drawText("MB", 20, 30, 15, "left", "#fff");
+             // Adjusted Y coord for alignment (was 24, now 18 to center vertically)
              drawPixelHeart(60, 18, 3); 
+             // Adjusted X coord for spacing (was 85, now 80 to tighten gap)
              drawText("VD", 80, 30, 15, "left", "#fff"); 
         }
 
