@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Our Story - 8 Bit Adventure</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            background-color: #202020;
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none; /* Prevent scroll on mobile */
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 4px solid #fff;
+            max-width: 100%;
+        }
+
+        canvas {
+            display: block;
+            background-color: #000;
+            max-width: 100%;
+            height: auto;
+            image-rendering: pixelated; /* Keeps 8-bit art crisp */
+        }
+
+        /* NEW BUTTON LAYOUT STYLING */
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            user-select: none;
+            -webkit-user-select: none;
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .btn {
+            background-color: #7f8c8d; /* Grey */
+            border: 4px solid #34495e;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #ddd;
+            font-family: inherit;
+            font-size: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            width: 80px;
+            height: 80px;
+        }
+        
+        .btn-nav:active, .btn-nav.active {
+            background-color: #95a5a6;
+            transform: translateY(2px);
+        }
+
+        #btn-action {
+            background-color: #27ae60; /* Green */
+            border-color: #1e8449;
+            width: 100px;
+            height: 100px;
+            font-size: 20px;
+        }
+
+        #btn-action:active, #btn-action.active {
+            background-color: #2ecc71;
+            transform: translateY(2px);
+        }
+
+        /* RESTART BUTTON */
+        #btn-restart {
+            position: absolute;
+            left: 0;
+            bottom: 5px;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            background-color: #c0392b; /* Red */
+            border: 2px solid #922b21;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            touch-action: manipulation;
+        }
+        #btn-restart:active {
+            background-color: #e74c3c;
+            transform: translateY(2px);
+        }
+
+        .hint {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #888;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+    </div>
+
+    <!-- New Direction Pad & Action Button -->
+    <div id="controls">
+        <button id="btn-restart" title="Restart Game">↻</button>
+        <button class="btn btn-nav" id="btn-left">◀</button>
+        <button class="btn" id="btn-action">ENTER</button>
+        <button class="btn btn-nav" id="btn-right">▶</button>
+    </div>
+    <div class="hint">Keyboard: Arrow Keys + Enter | Mobile: Tap or Hold buttons</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // === GAME STATE ===
+    const STATES = {
+        START: 0,
+        TINDER: 1,
+        MATCHED: 2,
+        DATING_TACOS: 3,
+        DATING_PUB: 10,       
+        DATING_YELLOW: 11,    
+        DATING_KROGER: 13,    
+        DATING_IFLY: 4,
+        DATING_ODDWORLD: 12,  
+        TRAVEL_MAP: 5,
+        PREGNANCY_TEST: 6,
+        CHRISTMAS: 7,
+        BIRTH: 8,
+        // NEW STATES
+        PARENTING_CHAOS: 20,
+        HALLOWEEN: 21,
+        THANKSGIVING: 22,
+        THEATER_OUTSIDE: 23,
+        THEATER_INSIDE: 24, 
+        FUTURE_HOME: 25,
+        FINAL_HINT: 26
+    };
+    
+    let currentState = STATES.START;
+    let frame = 0;
+    let lastTime = 0;
+
+    // === VARIABLES ===
+    let tinderIndex = 0; 
+    let tinderSwipeAnim = 0;
+    
+    // Proposal Logic (Kroger & Theater)
+    let proposalChoice = 1; // 0 = No, 1 = Yes
+    let screenShake = 0;
+    let celebrationActive = false;
+    let celebrationTimer = 0;
+    let balloons = [];
+    let confetti = [];
+
+    // Setup Random Tinder Profiles
+    const tinderProfiles = [
+        { name: "SADIE", hair: "#f1c40f", top: "#e74c3c", skin: "#ffdbac" }, 
+        { name: "AMBER", hair: "#d35400", top: "#3498db", skin: "#e0ac69" }, 
+        { name: "JESSICA", hair: "#555555", top: "#2ecc71", skin: "#8d5524" }
+    ];
+
+    // CITIES LIST 
+    const cities = [
+        { name: "Cincinnati", type: "swing" },
+        { name: "Cleveland", type: "icecream" },
+        { name: "Savannah", type: "pinkhouse" },
+        { name: "Nashville", type: "neon" },
+        { name: "Baton Rouge", type: "swamp" },
+        { name: "New Orleans", type: "bourbon" },
+        { name: "Traverse City", type: "dunes" },
+        { name: "Indianapolis", type: "bottleworks" }
+    ];
+    
+    let cityIndex = 0;
+    let travelProgress = 0; 
+    
+    let testAttempts = 0;
+    let testResultState = "waiting"; 
+    
+    let christmasSparkle = [];
+
+    // === ASSETS & COLORS ===
+    const palette = {
+        bg: "#202020",
+        maleSkin: "#eec39a",
+        maleHair: "#5a4a3a",
+        maleBeard: "#3e3223",
+        maleShirtColor: "#1a1a1a", // Black Shirt
+        malePantsColor: "#d2b48c", // Tan Pants
+        
+        femSkin: "#d2a679",
+        femHair: "#1a1a1a",
+        femTop: "#9b59b6",
+        femAcc: "#f1c40f",
+        
+        babySkin: "#f5d0a9",
+        babyHat: "#ffffff",
+        babyPaci: "#f1c40f",
+
+        taco: "#f39c12",
+        sky: "#87CEEB",
+        road: "#555555",
+        heart: "#e74c3c",
+        wood: "#8e44ad",
+        signWood: "#a0522d",
+        signBorder: "#603015",
+        grass: "#2ecc71",
+        
+        // Travel Specifics
+        sand: "#f4d03f",
+        swampWater: "#1e8449",
+        neonBlue: "#00ffff",
+        neonPink: "#ff00ff",
+        pinkHouse: "#ffc0cb",
+        brick: "#a93226",
+        
+        krogerBlue: "#0066B6",
+        krogerBrick: "#6d4c41",
+
+        pubBlack: "#1a1a1a",
+        pubDoorRed: "#d90429",
+        pubGold: "#f1c40f",
+        pubOrange: "#e67e22", 
+        pubStraw: "#e5c376",
+        
+        halloweenOrange: "#e67e22",
+        theaterRed: "#c0392b",
+        cowboyHat: "#8d6e63"
+    };
+
+    // Initialize Christmas sparkles
+    for(let i=0; i<50; i++) {
+        christmasSparkle.push({
+            x: Math.random() * 600,
+            y: Math.random() * 400,
+            speed: Math.random() * 2 + 1,
+            color: Math.random() > 0.5 ? "gold" : "white"
+        });
+    }
+
+    // === INPUT HANDLING ===
+    let keys = {};
+    
+    // Keyboard
+    window.addEventListener('keydown', (e) => {
+        if (!keys[e.key]) {
+            keys[e.key] = true;
+            processSingleInput(e.key); 
+        }
+    });
+    window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+    // Touch Bindings
+    const setupTouchButton = (id, key) => {
+        const btn = document.getElementById(id);
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; btn.classList.add('active'); processSingleInput(key); });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; btn.classList.remove('active'); });
+        btn.addEventListener('mousedown', (e) => { keys[key] = true; btn.classList.add('active'); processSingleInput(key); });
+        btn.addEventListener('mouseup', (e) => { keys[key] = false; btn.classList.remove('active'); });
+        btn.addEventListener('mouseleave', (e) => { keys[key] = false; btn.classList.remove('active'); });
+    };
+    setupTouchButton('btn-right', 'ArrowRight');
+    setupTouchButton('btn-left', 'ArrowLeft');
+    
+    // The Green Action Button triggers Enter
+    const btnAction = document.getElementById('btn-action');
+    const handleActionPress = (e) => {
+        if (e.cancelable) e.preventDefault();
+        keys['Enter'] = true;
+        btnAction.classList.add('active');
+        processSingleInput('Enter');
+    };
+    const handleActionRelease = (e) => {
+        if (e.cancelable) e.preventDefault();
+        keys['Enter'] = false;
+        btnAction.classList.remove('active');
+    };
+    btnAction.addEventListener('touchstart', handleActionPress);
+    btnAction.addEventListener('touchend', handleActionRelease);
+    btnAction.addEventListener('mousedown', handleActionPress);
+    btnAction.addEventListener('mouseup', handleActionRelease);
+    btnAction.addEventListener('mouseleave', handleActionRelease);
+
+    // RESTART BUTTON
+    document.getElementById('btn-restart').addEventListener('click', () => {
+        currentState = STATES.START;
+        tinderIndex = 0;
+        tinderSwipeAnim = 0;
+        cityIndex = 0;
+        travelProgress = 0;
+        testAttempts = 0;
+        testResultState = "waiting";
+        proposalChoice = 1;
+        screenShake = 0;
+        celebrationActive = false;
+        celebrationTimer = 0;
+        balloons = [];
+        confetti = [];
+        keys = {}; 
+    });
+
+    // Inputs that should only trigger once per press (For Scene Changes)
+    function processSingleInput(key) {
+        
+        if (currentState === STATES.START) {
+            if (key === "Enter" || key === "ArrowRight" || key === " ") {
+                currentState = STATES.TINDER;
+                tinderIndex = 0;
+            }
+        }
+        else if (currentState === STATES.TINDER && tinderSwipeAnim === 0) {
+            if (key === "ArrowLeft") {
+                tinderSwipeAnim = -10; 
+                setTimeout(() => { 
+                    if (tinderIndex < 3) tinderIndex++; 
+                    tinderSwipeAnim = 0; 
+                }, 300);
+            } else if (key === "ArrowRight") {
+                tinderSwipeAnim = 10; 
+                setTimeout(() => {
+                    if (tinderIndex === 3) currentState = STATES.MATCHED;
+                    else { tinderIndex++; tinderSwipeAnim = 0; }
+                }, 300);
+            }
+        }
+        else if (currentState === STATES.MATCHED) {
+            if (key === "ArrowLeft") {
+                currentState = STATES.TINDER;
+                tinderIndex = 3; 
+            }
+            else if (key === "ArrowRight" || key === "Enter") {
+                currentState = STATES.DATING_TACOS;
+            }
+        }
+        else if (currentState === STATES.DATING_TACOS) {
+            if (key === "ArrowLeft") currentState = STATES.MATCHED;
+            else if (key === "ArrowRight") currentState = STATES.DATING_PUB;
+        }
+        else if (currentState === STATES.DATING_PUB) {
+            if (key === "ArrowLeft") currentState = STATES.DATING_TACOS;
+            else if (key === "ArrowRight") currentState = STATES.DATING_YELLOW; 
+        }
+        else if (currentState === STATES.DATING_YELLOW) {
+            if (key === "ArrowLeft") currentState = STATES.DATING_PUB;
+            else if (key === "ArrowRight") currentState = STATES.DATING_KROGER; 
+        }
+        else if (currentState === STATES.DATING_KROGER) {
+            if (!celebrationActive) {
+                if (key === "ArrowLeft" || key === "ArrowRight") proposalChoice = proposalChoice === 1 ? 0 : 1;
+                if (key === "ArrowLeft" && keys["Shift"]) currentState = STATES.DATING_YELLOW; 
+
+                if (key === "Enter" || key === " ") {
+                    if (proposalChoice === 1) {
+                        startCelebration();
+                    } else {
+                        screenShake = 20; 
+                    }
+                }
+            }
+        }
+        else if (currentState === STATES.DATING_IFLY) {
+            if (key === "ArrowLeft") currentState = STATES.DATING_KROGER;
+            else if (key === "ArrowRight") currentState = STATES.DATING_ODDWORLD;
+        }
+        else if (currentState === STATES.DATING_ODDWORLD) {
+            if (key === "ArrowLeft") currentState = STATES.DATING_IFLY;
+            else if (key === "ArrowRight") currentState = STATES.TRAVEL_MAP;
+        }
+        else if (currentState === STATES.PREGNANCY_TEST) {
+            if (key === "ArrowLeft") {
+                currentState = STATES.TRAVEL_MAP;
+                cityIndex = cities.length - 1;
+                travelProgress = 149;
+            }
+            else if ((key === "Enter" || key === " ") && testResultState === "waiting") {
+                testAttempts++;
+                testResultState = "checking";
+                setTimeout(() => {
+                    if (testAttempts < 4) {
+                        testResultState = "negative";
+                        setTimeout(() => testResultState = "waiting", 500);
+                    } else {
+                        testResultState = "positive";
+                        setTimeout(() => currentState = STATES.CHRISTMAS, 3000);
+                    }
+                }, 500);
+            }
+        }
+        else if (currentState === STATES.CHRISTMAS) {
+            if (key === "ArrowLeft") currentState = STATES.PREGNANCY_TEST;
+            else if (key === "ArrowRight") currentState = STATES.BIRTH;
+        }
+        else if (currentState === STATES.BIRTH) {
+            if (key === "ArrowLeft") currentState = STATES.CHRISTMAS;
+            if (key === "ArrowRight") currentState = STATES.PARENTING_CHAOS;
+        }
+        // NEW SCENES FLOW
+        else if (currentState === STATES.PARENTING_CHAOS) {
+            if (key === "ArrowLeft") currentState = STATES.BIRTH;
+            if (key === "ArrowRight") currentState = STATES.HALLOWEEN;
+        }
+        else if (currentState === STATES.HALLOWEEN) {
+            if (key === "ArrowLeft") currentState = STATES.PARENTING_CHAOS;
+            if (key === "ArrowRight") currentState = STATES.THANKSGIVING;
+        }
+        else if (currentState === STATES.THANKSGIVING) {
+            if (key === "ArrowLeft") currentState = STATES.HALLOWEEN;
+            if (key === "ArrowRight") currentState = STATES.THEATER_OUTSIDE;
+        }
+        else if (currentState === STATES.THEATER_OUTSIDE) {
+            if (key === "ArrowLeft") currentState = STATES.THANKSGIVING;
+            if (key === "ArrowRight") {
+                currentState = STATES.THEATER_INSIDE; // Go inside
+                proposalChoice = 1; // Default to Yes
+            }
+        }
+        else if (currentState === STATES.THEATER_INSIDE) {
+            if (!celebrationActive) {
+                if (key === "ArrowLeft" || key === "ArrowRight") proposalChoice = proposalChoice === 1 ? 0 : 1;
+                if (key === "ArrowLeft" && keys["Shift"]) currentState = STATES.THEATER_OUTSIDE;
+
+                if (key === "Enter" || key === " ") {
+                    if (proposalChoice === 1) {
+                        startCelebration();
+                    } else {
+                        screenShake = 20; 
+                    }
+                }
+            }
+        }
+        else if (currentState === STATES.FUTURE_HOME) {
+             if (key === "ArrowLeft") {
+                 currentState = STATES.THEATER_INSIDE;
+                 celebrationActive = false; // Reset to allow re-proposal
+             }
+             if (key === "ArrowRight" || key === "Enter" || key === " ") currentState = STATES.FINAL_HINT;
+        }
+        else if (currentState === STATES.FINAL_HINT) {
+             if (key === "ArrowLeft") currentState = STATES.FUTURE_HOME;
+        }
+    }
+
+    function startCelebration() {
+        celebrationActive = true;
+        celebrationTimer = 0;
+        balloons = [];
+        confetti = [];
+        for(let i=0; i<20; i++) balloons.push({x: 50 + Math.random()*500, y: 400 + Math.random()*200, speed: 2+Math.random()*2, color: `hsl(${Math.random()*360}, 70%, 60%)`});
+        for(let i=0; i<100; i++) confetti.push({x: Math.random()*600, y: -10 - Math.random()*400, speed: 2+Math.random()*3, color: `hsl(${Math.random()*360}, 90%, 50%)`});
+    }
+
+    // === DRAWING HELPERS ===
+    function drawMale(x, y, scale = 1, kneeling = false) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        
+        let yOffset = kneeling ? 15 : 0; // Lower body if kneeling
+
+        // Shirt (Black)
+        ctx.fillStyle = palette.maleShirtColor;
+        ctx.fillRect(-15, 20 + yOffset, 30, 25); 
+        // Sleeves
+        ctx.fillStyle = palette.maleShirtColor;
+        ctx.fillRect(-18, 20 + yOffset, 3, 10); ctx.fillRect(15, 20 + yOffset, 3, 10);
+        ctx.fillStyle = palette.maleSkin; 
+        ctx.fillRect(-18, 30 + yOffset, 3, 15); ctx.fillRect(15, 30 + yOffset, 3, 15);
+
+        // Pants (Tan)
+        ctx.fillStyle = palette.malePantsColor;
+        if (kneeling) {
+            ctx.fillRect(-15, 45 + yOffset, 30, 10); // Shorter leg visuals
+            ctx.fillRect(15, 50 + yOffset, 10, 5);   // Knee out
+        } else {
+            ctx.fillRect(-15, 45, 30, 15);
+        }
+
+        ctx.fillStyle = palette.maleSkin; ctx.fillRect(-12, -10 + yOffset, 24, 30); // Head
+        ctx.fillStyle = palette.maleBeard; ctx.fillRect(-12, 10 + yOffset, 24, 10); ctx.fillRect(-12, 5 + yOffset, 4, 10); ctx.fillRect(8, 5 + yOffset, 4, 10); ctx.fillRect(-5, 12 + yOffset, 10, 5); ctx.fillRect(-5, 5 + yOffset, 10, 2); 
+        ctx.fillStyle = palette.maleHair; ctx.fillRect(-14, -15 + yOffset, 28, 10); ctx.fillRect(-14, -5 + yOffset, 4, 10); ctx.fillRect(10, -5 + yOffset, 4, 10); 
+        ctx.fillStyle = "#000"; ctx.fillRect(-8, 0 + yOffset, 4, 4); ctx.fillRect(4, 0 + yOffset, 4, 4); 
+        ctx.restore();
+    }
+
+    function drawFemale(x, y, scale = 1, colors = {}) {
+        const top = colors.top || palette.femTop;
+        const skin = colors.skin || palette.femSkin;
+        const hair = colors.hair || palette.femHair;
+        const acc = colors.acc || palette.femAcc;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = top; ctx.fillRect(-15, 20, 30, 40); 
+        ctx.fillStyle = skin; ctx.fillRect(-20, 20, 5, 30); ctx.fillRect(15, 20, 5, 30); 
+        ctx.fillStyle = skin; ctx.fillRect(-12, -10, 24, 30); 
+        ctx.fillStyle = "#000"; ctx.fillRect(-8, 0, 4, 4); ctx.fillRect(4, 0, 4, 4); 
+        ctx.fillStyle = "#a34a4a"; ctx.fillRect(-6, 12, 12, 3); ctx.fillStyle = "#fff"; ctx.fillRect(-4, 13, 8, 1); 
+        ctx.fillStyle = hair; ctx.fillRect(-14, -15, 28, 12); ctx.fillRect(-16, -5, 6, 45); ctx.fillRect(10, -5, 6, 45); 
+        ctx.fillStyle = acc; ctx.fillRect(-16, 10, 3, 6); ctx.fillRect(13, 10, 3, 6); 
+        ctx.restore();
+    }
+
+    function drawBaby(x, y, scale = 1, costume = null) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(-15, 5, 30, 25); // Body/Diaper/Blanket default
+
+        if (costume === "cowboy") {
+            ctx.fillStyle = "#8d6e63"; // Brown vest
+            ctx.fillRect(-15, 5, 30, 25);
+            ctx.fillStyle = "#f1c40f"; // Badge
+            ctx.fillRect(-5, 10, 10, 10);
+        }
+
+        ctx.fillStyle = palette.babySkin; ctx.fillRect(-10, -10, 20, 15);
+        
+        if (costume === "cowboy") {
+            // Cowboy Hat
+            ctx.fillStyle = palette.cowboyHat;
+            ctx.fillRect(-20, -15, 40, 5); // Brim
+            ctx.fillRect(-12, -25, 24, 10); // Top
+        } else {
+            // Beanie
+            ctx.fillStyle = palette.babyHat; ctx.fillRect(-11, -15, 22, 6); ctx.fillRect(-9, -20, 18, 5); ctx.fillRect(-3, -24, 6, 4);
+        }
+
+        ctx.fillStyle = palette.babyPaci; ctx.fillRect(-3, 0, 6, 4);
+        ctx.fillStyle = "#000"; ctx.fillRect(-7, -4, 3, 1); ctx.fillRect(4, -4, 3, 1);
+        ctx.restore();
+    }
+
+    function drawPixelHeart(x, y, size) {
+        ctx.fillStyle = palette.heart; ctx.save(); ctx.translate(x, y); ctx.scale(size, size); ctx.beginPath(); ctx.fillRect(-1, -1, 1, 1); ctx.fillRect(1, -1, 1, 1); ctx.fillRect(-2, 0, 5, 2); ctx.fillRect(-1, 2, 3, 1); ctx.fillRect(0, 3, 1, 1); ctx.restore();
+    }
+
+    function drawText(text, x, y, size, align = "center", color = "white") {
+        ctx.font = `${size}px 'Press Start 2P'`; ctx.textAlign = align; ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillText(text, x+2, y+2); ctx.fillStyle = color; ctx.fillText(text, x, y);
+    }
+
+    function drawWelcomeSign(x, y, cityName) {
+        ctx.fillStyle = palette.signBorder; ctx.fillRect(x-5, y, 10, 100);
+        ctx.fillStyle = palette.signBorder; ctx.fillRect(x-105, y-65, 210, 70);
+        ctx.fillStyle = palette.signWood; ctx.fillRect(x-100, y-60, 200, 60);
+        drawText("WELCOME TO", x, y-40, 12, "center", "#3e2723");
+        drawText(cityName.toUpperCase(), x, y-15, 12, "center", "#3e2723");
+    }
+
+    // === MAIN LOOP ===
+    function gameLoop(timestamp) {
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+        frame++;
+
+        ctx.fillStyle = palette.bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Visual Shake for "No"
+        if (screenShake > 0) {
+            ctx.save();
+            ctx.translate(Math.random()*10 - 5, Math.random()*10 - 5);
+            screenShake--;
+        }
+
+        // Continuous Input Handling for Travel State
+        if (currentState === STATES.TRAVEL_MAP) {
+            if (keys["ArrowRight"]) {
+                travelProgress += 1; // Slower movement
+                if (travelProgress >= 150) { 
+                    travelProgress = 0;
+                    cityIndex++;
+                    if (cityIndex >= cities.length) {
+                        currentState = STATES.PREGNANCY_TEST;
+                    }
+                }
+            }
+            if (keys["ArrowLeft"]) {
+                travelProgress -= 1; 
+                if (travelProgress < 0) {
+                    if (cityIndex > 0) {
+                        cityIndex--;
+                        travelProgress = 149;
+                    } else {
+                        // BACK TO ODDWORLD
+                        currentState = STATES.DATING_ODDWORLD;
+                    }
+                }
+            }
+        }
+
+        // STATE RENDERER
+        switch(currentState) {
+            case STATES.START:
+                drawText("THE STORY OF US", 300, 120, 35, "center", "#fff");
+                drawText("A Digital Love Story", 300, 160, 15, "center", "#aaa");
+                drawMale(220, 250, 3); drawFemale(380, 250, 3);
+                if (frame % 60 < 30) drawText("PRESS ENTER ( > )", 300, 350, 20, "center", "#f1c40f");
+                break;
+
+            case STATES.TINDER:
+                drawText("SWIPE TO FIND LOVE", 300, 50, 20, "center");
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(200, 80, 200, 280);
+                
+                let cardX = 300 + tinderSwipeAnim * 20;
+                let cardName = "Random";
+                
+                ctx.fillStyle = "#fff"; ctx.fillRect(cardX - 80, 100, 160, 200); // Card BG
+                
+                if (tinderIndex < 3) {
+                    let p = tinderProfiles[tinderIndex];
+                    ctx.fillStyle = "#bdc3c7"; ctx.fillRect(cardX - 60, 120, 120, 120); 
+                    drawFemale(cardX, 160, 2, { hair: p.hair, top: p.top, skin: p.skin });
+                    cardName = p.name;
+                } else {
+                    ctx.fillStyle = "#e8daef"; ctx.fillRect(cardX - 60, 120, 120, 120); 
+                    drawFemale(cardX, 160, 2); 
+                    cardName = "VERONICA";
+                }
+
+                drawText(cardName, cardX, 330, 15, "center", "#f1c40f"); // YELLOW NAMES
+
+                if (tinderIndex === 3) { 
+                    if (frame % 30 < 15) drawText("SWIPE RIGHT! >", 500, 200, 12, "center", palette.heart); 
+                } else { 
+                    drawText("< NO", 150, 200, 15, "center", "#e74c3c"); 
+                    drawText("YES >", 450, 200, 15, "center", "#2ecc71"); 
+                }
+                break;
+
+            case STATES.MATCHED:
+                drawText("IT'S A MATCH!", 300, 100, 40, "center", "#e91e63");
+                drawMale(220, 250, 3); drawFemale(380, 250, 3); drawPixelHeart(300, 200, 5);
+                break;
+
+            case STATES.DATING_TACOS:
+                ctx.fillStyle = "#2c3e50"; ctx.fillRect(0,0,600,400);
+                drawText("CONDADOS TACOS", 300, 60, 25, "center", "#f1c40f");
+                ctx.fillStyle = palette.wood; ctx.fillRect(200, 300, 200, 100);
+                drawMale(180, 280, 2.5); drawFemale(420, 280, 2.5);
+                ctx.fillStyle = palette.taco; ctx.beginPath(); ctx.arc(260, 290, 15, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.arc(340, 290, 15, Math.PI, 0); ctx.fill();
+                drawText("First Date Success!", 300, 380, 15, "center");
+                break;
+            
+            case STATES.DATING_PUB:
+                // UPDATED PUB SCENE based on Photo
+                // Grey Sky
+                ctx.fillStyle = "#7f8c8d"; ctx.fillRect(0,0,600,400);
+                
+                // Black Building Facade
+                ctx.fillStyle = palette.pubBlack; ctx.fillRect(50, 50, 500, 350);
+                
+                // Gold Logo Text "the Pub"
+                drawText("The Pub", 300, 120, 40, "center", palette.pubGold);
+                
+                // Red Double Doors
+                ctx.fillStyle = palette.pubDoorRed; 
+                ctx.fillRect(220, 200, 75, 150); // Left Door
+                ctx.fillRect(305, 200, 75, 150); // Right Door
+                // Door frames/details
+                ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2;
+                ctx.strokeRect(220, 200, 75, 150); ctx.strokeRect(305, 200, 75, 150);
+                
+                // Pumpkins & Corn Stalks (Autumn Decor)
+                ctx.fillStyle = palette.pubStraw; ctx.fillRect(150, 300, 40, 50); ctx.fillRect(410, 300, 40, 50);
+                ctx.fillStyle = palette.pubOrange; ctx.beginPath(); ctx.arc(170, 340, 15, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(430, 340, 15, 0, Math.PI*2); ctx.fill();
+
+                // Characters
+                drawMale(200, 310, 2.5); drawFemale(400, 310, 2.5); 
+                
+                drawText("Second Date Success!", 300, 380, 15, "center");
+                break;
+            
+            case STATES.DATING_YELLOW:
+                ctx.fillStyle = "#87ceeb"; ctx.fillRect(0,0,600,400); // Sky
+                ctx.fillStyle = "#7cb342"; ctx.beginPath(); ctx.arc(300, 500, 300, 0, Math.PI*2); ctx.fill();
+                drawText("YELLOW SPRINGS, OH", 300, 60, 25, "center", "#1b5e20");
+                ctx.fillStyle = "#5d4037"; ctx.fillRect(100, 200, 20, 100); ctx.fillRect(500, 220, 20, 80); // Trunks
+                ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(110, 180, 40, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#5d4037"; ctx.fillRect(500, 220, 20, 80); // Trunk
+                ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(510, 200, 35, 0, Math.PI*2); ctx.fill();
+                drawMale(250, 250, 2); drawFemale(350, 250, 2);
+                drawText("Third Date Success!", 300, 380, 15, "center");
+                break;
+
+            case STATES.DATING_KROGER:
+                // EXTERIOR VIEW
+                // Sky
+                ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,600,400);
+                // Sidewalk
+                ctx.fillStyle = "#7f8c8d"; ctx.fillRect(0, 320, 600, 80);
+                
+                // Store Facade (Brown Brick)
+                ctx.fillStyle = palette.krogerBrick; ctx.fillRect(20, 50, 560, 270);
+                
+                // Entrance (Glass)
+                ctx.fillStyle = "#cfd8dc"; ctx.fillRect(220, 180, 160, 140); // Frame
+                ctx.fillStyle = "#81d4fa"; ctx.fillRect(230, 190, 60, 130); // Door L
+                ctx.fillStyle = "#81d4fa"; ctx.fillRect(310, 190, 60, 130); // Door R
+                
+                // Signage Background
+                ctx.fillStyle = "#ecf0f1"; ctx.fillRect(180, 80, 240, 60);
+                // Blue Lettering
+                drawText("Kroger", 300, 125, 30, "center", palette.krogerBlue);
+
+                // Characters Standing Outside (Jump ignored here to stay in scene)
+                drawMale(200, 330, 2.5); drawFemale(400, 330, 2.5);
+
+                if (!celebrationActive) {
+                    // Dialog Box
+                    ctx.fillStyle = "white"; 
+                    ctx.strokeStyle = "black"; ctx.lineWidth = 4;
+                    ctx.strokeRect(100, 20, 400, 70); ctx.fillRect(100, 20, 400, 70);
+                    drawText("Will you be my girlfriend?", 300, 50, 12, "center", "black");
+                    drawText("(Select Yes or No)", 300, 75, 10, "center", "#7f8c8d");
+
+                    // Choices
+                    let yesColor = proposalChoice === 1 ? palette.krogerBlue : "#bdc3c7";
+                    let noColor = proposalChoice === 0 ? palette.krogerBlue : "#bdc3c7";
+                    
+                    drawText("YES", 250, 350, 20, "center", yesColor);
+                    drawText("NO", 350, 350, 20, "center", noColor);
+                    
+                    // Cursor Arrow
+                    let cursorX = proposalChoice === 1 ? 200 : 390;
+                    drawText(">", cursorX, 350, 20, "center", palette.krogerBlue);
+                } else {
+                    // CELEBRATION!
+                    celebrationTimer++;
+                    
+                    // Confetti (Rain Graffiti)
+                    confetti.forEach(c => {
+                        ctx.fillStyle = c.color;
+                        ctx.fillRect(c.x, c.y, 4, 4);
+                        c.y += c.speed;
+                        c.x += Math.sin(frame/10 + c.speed)*2; 
+                    });
+
+                    // Balloons
+                    balloons.forEach(b => {
+                        ctx.fillStyle = b.color;
+                        ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI*2); ctx.fill(); // Body
+                        ctx.strokeStyle = "white"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(b.x, b.y+10); ctx.lineTo(b.x, b.y+30); ctx.stroke(); // String
+                        b.y -= b.speed;
+                    });
+
+                    drawText("SHE SAID YES!", 300, 200, 40, "center", "#e91e63");
+
+                    if (celebrationTimer > 200) { // 3 seconds
+                        currentState = STATES.DATING_IFLY;
+                        krogerCelebration = false;
+                    }
+                }
+                break;
+
+            case STATES.DATING_IFLY:
+                ctx.fillStyle = palette.sky; ctx.fillRect(0,0,600,400);
+                drawText("iFLY ADVENTURE", 300, 60, 25, "center", "#2980b9");
+                ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 2;
+                for(let i=0; i<10; i++) { let wx = (frame * 5 + i * 100) % 600; ctx.beginPath(); ctx.moveTo(wx, 100 + i*30); ctx.lineTo(wx, 120 + i*30); ctx.stroke(); }
+                let floatY = Math.sin(frame / 20) * 20; drawMale(250, 200 + floatY, 2); drawFemale(350, 200 - floatY, 2);
+                break;
+
+            case STATES.DATING_ODDWORLD:
+                let r = Math.sin(frame/20) * 50 + 50;
+                let g = Math.cos(frame/30) * 50 + 50;
+                let b = Math.sin(frame/40) * 50 + 100;
+                ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fillRect(0,0,600,400);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+                for(let i=0; i<5; i++) { ctx.beginPath(); ctx.arc(100 + i*100, 200 + Math.sin((frame+i*50)/20)*50, 30, 0, Math.PI*2); ctx.fill(); }
+                drawWelcomeSign(300, 200, "COLUMBUS");
+                drawText("ODDWORLD", 300, 350, 15, "center", "#fff");
+                drawMale(150, 280, 2); drawFemale(450, 280, 2);
+                break;
+
+            case STATES.TRAVEL_MAP:
+                let currentCity = cities[cityIndex];
+                if (currentCity.type === "swing") {
+                    ctx.fillStyle = "#e59866"; ctx.fillRect(0,0,600,400); // Interior wall
+                    ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 3;
+                    let swingX = 300 + Math.sin(frame/30)*50;
+                    ctx.beginPath(); ctx.moveTo(300, 0); ctx.lineTo(swingX, 200); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(320, 0); ctx.lineTo(swingX+20, 200); ctx.stroke();
+                    ctx.fillStyle = "#8e44ad"; ctx.fillRect(swingX-10, 200, 40, 10);
+                }
+                else if (currentCity.type === "icecream") {
+                    ctx.fillStyle = "#aed6f1"; ctx.fillRect(0,0,600,400);
+                    ctx.fillStyle = "#d35400"; ctx.beginPath(); ctx.moveTo(300, 350); ctx.lineTo(250, 150); ctx.lineTo(350, 150); ctx.fill();
+                    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(300, 150, 60, 0, Math.PI, true); ctx.fill();
+                    drawText("MITCHELL'S", 300, 100, 20, "center", "#333");
+                }
+                else if (currentCity.type === "bottleworks") {
+                    ctx.fillStyle = "#2c3e50"; ctx.fillRect(0,0,600,400); 
+                    ctx.fillStyle = "#a93226"; ctx.fillRect(100, 100, 400, 300); 
+                    ctx.fillStyle = "#f1c40f"; ctx.fillRect(120, 120, 30, 80); ctx.fillRect(450, 120, 30, 80);
+                    drawText("BOTTLEWORKS", 300, 80, 20, "center", "#f1c40f");
+                }
+                else if (currentCity.type === "dunes") {
+                    ctx.fillStyle = "#85c1e9"; ctx.fillRect(0,0,600,400);
+                    ctx.fillStyle = palette.sand; ctx.beginPath(); ctx.moveTo(0, 400); 
+                    for(let i=0; i<=600; i+=10) { ctx.lineTo(i, 300 + Math.sin(i/50)*50); } ctx.lineTo(600, 400); ctx.fill();
+                }
+                else if (currentCity.type === "neon") {
+                    ctx.fillStyle = "#050505"; ctx.fillRect(0,0,600,400);
+                    ctx.fillStyle = "#151515"; ctx.fillRect(40, 150, 70, 250);
+                    ctx.beginPath(); ctx.moveTo(40, 150); ctx.lineTo(40, 90); ctx.lineTo(60, 150); ctx.moveTo(110, 150); ctx.lineTo(110, 90); ctx.lineTo(90, 150); ctx.fill();
+                    ctx.fillStyle = "#a93226"; ctx.fillRect(40, 90, 2, 2); ctx.fillRect(110, 90, 2, 2);
+                    ctx.strokeStyle = palette.neonPink; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(500, 160, 25, 0, Math.PI*2); ctx.arc(500, 210, 35, 0, Math.PI*2); ctx.moveTo(500, 135); ctx.lineTo(500, 60); ctx.stroke(); ctx.strokeRect(490, 40, 20, 20);
+                    drawText("MUSIC", 500, 215, 10, "center", palette.neonPink);
+                    ctx.strokeStyle = palette.neonBlue; ctx.lineWidth=2; ctx.strokeRect(180, 80, 240, 60);
+                    ctx.fillStyle = palette.neonBlue; ctx.fillRect(190, 90, 220, 40);
+                    drawText("BROADWAY", 300, 118, 25, "center", "#fff");
+                    drawText("HONKY TONK", 300, 160, 12, "center", palette.neonBlue);
+                    for(let i=0; i<25; i++) { let cx = i*25 + Math.random()*5; let cy = 300; ctx.fillStyle = (i%2==0) ? "#d35400" : "#ba4a00"; ctx.fillRect(cx-12, cy-15, 24, 5); ctx.fillRect(cx-7, cy-25, 14, 10); }
+                    if(frame % 30 < 15) drawText("♪", 460, 100, 20, "center", "#fff");
+                    if(frame % 30 > 15) drawText("♫", 540, 120, 20, "center", "#fff");
+                }
+                else if (currentCity.type === "pinkhouse") {
+                    ctx.fillStyle = "#85929e"; ctx.fillRect(0,0,600,400); 
+                    ctx.fillStyle = palette.pinkHouse; ctx.fillRect(150, 100, 300, 250);
+                    ctx.fillStyle = "#fff"; ctx.fillRect(180, 100, 20, 250); ctx.fillRect(400, 100, 20, 250);
+                    drawText("THE PINK HOUSE", 300, 90, 20, "center", "#fff");
+                }
+                else if (currentCity.type === "swamp") {
+                    ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,600,400); 
+                    ctx.fillStyle = palette.swampWater; ctx.fillRect(0, 300, 600, 100); 
+                    ctx.fillStyle = "#bdc3c7"; ctx.beginPath(); ctx.moveTo(100, 310); ctx.lineTo(150, 310); ctx.lineTo(180, 280); ctx.lineTo(50, 280); ctx.fill();
+                    ctx.strokeStyle = "#555"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(70, 260, 30, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(70, 230); ctx.lineTo(70, 290); ctx.stroke(); ctx.beginPath(); ctx.moveTo(40, 260); ctx.lineTo(100, 260); ctx.stroke();
+                    for(let i=0; i<4; i++) { let offset = i * 150; let cx = ((frame*2) + offset) % 800 - 100; let cy = 310 + (i%2)*20; ctx.fillStyle = "#2ecc71"; ctx.fillRect(cx, cy, 60, 15); ctx.fillRect(cx+40, cy-5, 20, 10); ctx.fillStyle = "yellow"; ctx.fillRect(cx+50, cy-3, 2, 2); }
+                }
+                else if (currentCity.type === "bourbon") {
+                    // NEW ORLEANS - BOURBON STREET
+                    ctx.fillStyle = "#2c3e50"; ctx.fillRect(0,0,600,400); 
+                    
+                    // Row of bars (Colorful Facades)
+                    const barColors = ["#e74c3c", "#f39c12", "#8e44ad", "#2980b9"];
+                    for(let i=0; i<4; i++) {
+                        let x = i * 150;
+                        ctx.fillStyle = barColors[i % 4];
+                        ctx.fillRect(x, 100, 150, 300); 
+                        
+                        ctx.fillStyle = "#1a1a1a"; // Dark window
+                        ctx.fillRect(x+20, 130, 40, 60); ctx.fillRect(x+90, 130, 40, 60);
+                        
+                        ctx.strokeStyle = (i%2==0) ? "#f1c40f" : "#e74c3c"; ctx.lineWidth = 2;
+                        ctx.strokeRect(x+30, 220, 90, 30);
+                        let signText = (i%2==0) ? "BAR" : "JAZZ";
+                        drawText(signText, x+75, 245, 10, "center", (i%2==0) ? "#f1c40f" : "#e74c3c");
+                    }
+
+                    // Street lamps
+                    ctx.fillStyle = "#000"; ctx.fillRect(140, 250, 5, 150); ctx.fillRect(440, 250, 5, 150);
+                    ctx.beginPath(); ctx.arc(142, 250, 8, 0, Math.PI*2); ctx.arc(442, 250, 8, 0, Math.PI*2); ctx.fillStyle="#f1c40f"; ctx.fill();
+
+                    // Bourbon Street Sign (Green)
+                    ctx.fillStyle = "#1e8449"; ctx.fillRect(230, 50, 140, 40);
+                    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(230, 50, 140, 40);
+                    drawText("Bourbon St", 300, 78, 12, "center", "white");
+                }
+
+                drawWelcomeSign(300, 200, currentCity.name);
+                
+                let charX, charY;
+                if (currentCity.type === "swing") {
+                    let swingX = 300 + Math.sin(frame/30)*50;
+                    charX = swingX; charY = 200;
+                    drawMale(charX-15, charY, 1.5); drawFemale(charX+15, charY, 1.5);
+                }
+                else if (currentCity.type === "dunes") {
+                    let progress = (travelProgress / 150);
+                    charX = 50 + progress * 500;
+                    charY = 270 + Math.sin(charX/50)*50; 
+                    drawMale(charX, charY, 1.5); drawFemale(charX - 30, charY, 1.5);
+                }
+                else {
+                    let walkOffset = Math.sin(frame/5) * 5;
+                    charX = 50 + (travelProgress / 150) * 500;
+                    charY = 280;
+                    if(currentCity.type === "neon") charY = 320; 
+                    if(currentCity.type === "swamp") charY = 260; 
+                    drawMale(charX, charY, 1.5); 
+                    drawFemale(charX - 40, charY, 1.5);
+                }
+                drawText("Hold Right >", 500, 380, 12, "center");
+                break;
+
+            case STATES.PREGNANCY_TEST:
+                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,600,400);
+                drawText("TRYING FOR FAMILY", 300, 80, 25, "center", "#333");
+                drawMale(200, 200, 2); drawFemale(400, 200, 2);
+                if (testResultState === "waiting") drawText("Press Enter to test", 300, 320, 15, "center", "#555");
+                else if (testResultState === "checking") drawText("Checking...", 300, 320, 15, "center", "#555");
+                else if (testResultState === "negative") drawText("Negative...", 300, 320, 25, "center", "#e74c3c");
+                else if (testResultState === "positive") { drawText("PREGNANT!", 300, 150, 40, "center", "#27ae60"); drawPixelHeart(300, 280, 5); }
+                break;
+
+            case STATES.CHRISTMAS:
+                ctx.fillStyle = "#145a32"; ctx.fillRect(0,0,600,400);
+                christmasSparkle.forEach(s => { ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y, 2, 2); s.y += s.speed; if(s.y > 400) s.y = 0; });
+                ctx.fillStyle = "#27ae60"; ctx.beginPath(); ctx.moveTo(300, 100); ctx.lineTo(200, 300); ctx.lineTo(400, 300); ctx.fill();
+                ctx.fillStyle = "#fff"; for(let i=0; i<15; i++) { ctx.fillRect(50 + i*35, 320, 10, 20); }
+                drawMale(250, 310, 2); drawFemale(350, 310, 2);
+                drawText("CHRISTMAS ANNOUNCEMENT", 300, 60, 20, "center", "gold");
+                if (frame % 60 < 40) drawText("WE'RE HAVING A BABY!", 300, 200, 22, "center", "#fff");
+                break;
+
+            case STATES.BIRTH:
+                ctx.fillStyle = "#ecf0f1"; ctx.fillRect(0,0,600,400);
+                drawText("WELCOME TO THE WORLD", 300, 80, 20, "center", "#333");
+                drawMale(180, 250, 2.5); drawFemale(420, 250, 2.5);
+                drawBaby(300, 280, 3);
+                drawText("AUGUST 13, 2025", 300, 350, 30, "center", "#2980b9");
+                drawText("Press Right >", 300, 390, 10, "center", "#333");
+                break;
+
+            case STATES.PARENTING_CHAOS:
+                ctx.fillStyle = "#95a5a6"; ctx.fillRect(0,0,600,400);
+                drawText("NEW PARENT CHAOS", 300, 60, 25, "center", "white");
+                for(let i=0; i<10; i++) {
+                    ctx.fillStyle = "white"; 
+                    let dx = (i * 70 + 30) % 550;
+                    let dy = 300 + (i % 2) * 30;
+                    ctx.fillRect(dx, dy, 15, 10);
+                }
+                drawMale(200, 280, 2.5); drawFemale(400, 280, 2.5);
+                let babyY = 280 + (frame % 10 < 5 ? -2 : 2); // Shaking
+                drawBaby(300, babyY, 3);
+                drawText("WAAH!", 300, 250, 15, "center", "red");
+                drawText("Zzz...", 200, 250, 15, "center", "blue");
+                drawText("Zzz...", 400, 250, 15, "center", "blue");
+                break;
+
+            case STATES.HALLOWEEN:
+                ctx.fillStyle = "#2c3e50"; ctx.fillRect(0,0,600,400); // Dark Blue Sky
+                // Decor
+                // Moon
+                ctx.fillStyle = "#f1c40f"; ctx.beginPath(); ctx.arc(500, 80, 40, 0, Math.PI*2); ctx.fill();
+                // Ghosts
+                ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                for(let i=0; i<3; i++) {
+                    let gx = 100 + i*150; let gy = 150 + Math.sin(frame/20 + i)*20;
+                    ctx.beginPath(); ctx.arc(gx, gy, 20, Math.PI, 0); ctx.fillRect(gx-20, gy, 40, 30); ctx.fill();
+                    ctx.fillStyle = "black"; ctx.fillRect(gx-10, gy-5, 5, 5); ctx.fillRect(gx+5, gy-5, 5, 5);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                }
+                // Bats
+                ctx.fillStyle = "black";
+                for(let i=0; i<3; i++) {
+                    let bx = 50 + i*200 + Math.sin(frame/30)*20; let by = 80 + i*30;
+                    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx-10, by-10); ctx.lineTo(bx+10, by-10); ctx.fill();
+                }
+                // Pumpkins on ground
+                ctx.fillStyle = palette.halloweenOrange;
+                ctx.beginPath(); ctx.arc(150, 350, 20, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(450, 350, 25, 0, Math.PI*2); ctx.fill();
+
+                drawText("FIRST HALLOWEEN", 300, 60, 25, "center", "orange");
+                drawMale(200, 280, 2.5); drawFemale(400, 280, 2.5);
+                // Baby Cowboy
+                drawBaby(300, 280, 3, "cowboy"); 
+                break;
+
+            case STATES.THANKSGIVING:
+                ctx.fillStyle = "#8d6e63"; ctx.fillRect(0,0,600,400);
+                drawText("THANKSGIVING", 300, 60, 25, "center", "white");
+                // Table
+                ctx.fillStyle = "#5d4037"; ctx.fillRect(150, 300, 300, 100);
+                // Turkey
+                ctx.fillStyle = "#e67e22"; ctx.beginPath(); ctx.arc(300, 280, 30, Math.PI, 0); ctx.fill();
+                ctx.fillRect(280, 280, 10, 20); ctx.fillRect(310, 280, 10, 20); // Legs
+                drawMale(100, 280, 2.5); drawFemale(500, 280, 2.5); drawBaby(300, 350, 3);
+                // FOOD
+                 // Mashed Potatoes (Left)
+                ctx.fillStyle = "#ecf0f1"; ctx.beginPath(); ctx.arc(220, 290, 20, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#f1c40f"; ctx.fillRect(215, 280, 10, 10); // Butter
+
+                // Stuffing (Right)
+                ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(380, 290, 20, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#6d4c41"; ctx.beginPath(); ctx.arc(380, 280, 15, 0, Math.PI*2); ctx.fill();
+
+                // Green Beans (Far Right)
+                ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(430, 290, 15, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#2ecc71"; 
+                for(let i=0; i<5; i++) ctx.fillRect(420 + i*4, 280, 3, 12);
+                break;
+
+            case STATES.THEATER_OUTSIDE:
+                ctx.fillStyle = "#1a1a1a"; ctx.fillRect(0,0,600,400); // Night
+                // Marquee
+                ctx.fillStyle = palette.theaterRed; ctx.fillRect(100, 50, 400, 100);
+                // Lights
+                for(let i=0; i<20; i++) {
+                    ctx.fillStyle = (frame % 30 < 15) ? "yellow" : "orange";
+                    ctx.fillRect(110 + i*19, 55, 10, 10);
+                    ctx.fillRect(110 + i*19, 135, 10, 10);
+                }
+                ctx.fillStyle = "white"; ctx.fillRect(120, 70, 360, 60);
+                drawText("LITTLE ART THEATRE", 300, 110, 20, "center", "black");
+                drawMale(250, 300, 2); drawFemale(350, 300, 2);
+                // Removed "Enter >" text
+                break;
+
+            case STATES.THEATER_INSIDE:
+                ctx.fillStyle = "#000"; ctx.fillRect(0,0,600,400); // Dark Interior
+                
+                // Screen (Smaller and Higher)
+                ctx.fillStyle = "#ccc"; 
+                ctx.fillRect(150, 20, 300, 120); 
+                
+                // Red Carpet
+                ctx.fillStyle = "#c0392b"; 
+                ctx.beginPath(); 
+                ctx.moveTo(250, 250); ctx.lineTo(350, 250); // Carpet start
+                ctx.lineTo(400, 400); ctx.lineTo(200, 400); // Carpet end
+                ctx.fill();
+                
+                // Rows of seats (Silhouette)
+                ctx.fillStyle = "#222";
+                ctx.fillRect(0, 350, 200, 50); ctx.fillRect(400, 350, 200, 50);
+
+                // Characters in FOREFRONT (Drawn last, lower Y)
+                // Y=200 was too high, Y=300 is standard ground
+                // Let's place them at 280 to be clearly visible
+                if (!celebrationActive) {
+                    drawMale(200, 280, 2.5, true); // KNEELING
+                    drawFemale(400, 280, 2.5);
+                    
+                    // Dialog Box (MOVED UP TO SCREEN AREA)
+                    ctx.fillStyle = "white"; 
+                    ctx.strokeStyle = "black"; ctx.lineWidth = 4;
+                    ctx.strokeRect(100, 50, 400, 70); ctx.fillRect(100, 50, 400, 70);
+                    drawText("Will you marry me?", 300, 75, 15, "center", "black");
+                    
+                    let yesColor = proposalChoice === 1 ? palette.krogerBlue : "#bdc3c7";
+                    let noColor = proposalChoice === 0 ? palette.krogerBlue : "#bdc3c7";
+                    drawText("YES", 250, 100, 20, "center", yesColor);
+                    drawText("NO", 350, 100, 20, "center", noColor);
+                    let cursorX = proposalChoice === 1 ? 200 : 390;
+                    drawText(">", cursorX, 100, 20, "center", palette.krogerBlue);
+                } else {
+                    // Celebration
+                    celebrationTimer++;
+                    // Draw characters again so they persist during confetti
+                    drawMale(200, 280, 2.5, true); 
+                    drawFemale(400, 280, 2.5);
+
+                    confetti.forEach(c => { ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, 4, 4); c.y += c.speed; c.x += Math.sin(frame/10 + c.speed)*2; });
+                    balloons.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(b.x, b.y+10); ctx.lineTo(b.x, b.y+30); ctx.stroke(); b.y -= b.speed; });
+                    
+                    drawText("SHE SAID YES!", 300, 200, 40, "center", "#e91e63");
+                    if (celebrationTimer > 200) { currentState = STATES.FUTURE_HOME; celebrationActive = false; celebrationTimer = 0; }
+                }
+                break;
+
+            case STATES.FUTURE_HOME:
+                ctx.fillStyle = "#87ceeb"; ctx.fillRect(0,0,600,400); // Sky
+                ctx.fillStyle = "#2ecc71"; ctx.fillRect(0, 300, 600, 100); // Grass
+                
+                // House
+                ctx.fillStyle = "#fdfefe"; ctx.fillRect(200, 200, 200, 150); // Body
+                ctx.fillStyle = "#a93226"; ctx.beginPath(); ctx.moveTo(180, 200); ctx.lineTo(300, 100); ctx.lineTo(420, 200); ctx.fill(); // Roof
+                // Door
+                ctx.fillStyle = "#5d4037"; ctx.fillRect(280, 280, 40, 70);
+                // Windows
+                ctx.fillStyle = "#87ceeb"; ctx.fillRect(220, 230, 40, 40); ctx.fillRect(340, 230, 40, 40);
+                
+                // Mailbox
+                ctx.fillStyle = "#555"; ctx.fillRect(450, 300, 5, 50); // Post
+                ctx.fillStyle = "#fff"; ctx.fillRect(440, 290, 30, 15); // Box
+                drawText("The DelBeckers", 450, 280, 8, "center", "#000");
+
+                drawText("LEVEL UNLOCKED:", 300, 50, 20, "center", "#000");
+                drawText("Our Next Chapter", 300, 80, 20, "center", "#000");
+                drawText("Press Right >", 300, 380, 10, "center", "#333");
+                break;
+
+            case STATES.FINAL_HINT:
+                ctx.fillStyle = "#000"; ctx.fillRect(0,0,600,400);
+                drawText("TO BE CONTINUED...", 300, 180, 25, "center", "white");
+                drawText("Get ready for the", 300, 230, 15, "center", "#aaa");
+                drawText("next great adventure", 300, 260, 15, "center", "#aaa");
+                break;
+        }
+        
+        // HUD
+        const hideHudStates = [ STATES.START, STATES.TINDER, STATES.MATCHED, STATES.DATING_TACOS, STATES.DATING_PUB, STATES.DATING_YELLOW ];
+        if (!hideHudStates.includes(currentState)) {
+             drawText("MB", 20, 30, 15, "left", "#fff");
+             // Adjusted Y coord for alignment (was 24, now 18 to center vertically)
+             drawPixelHeart(60, 18, 3); 
+             // Adjusted X coord for spacing (was 85, now 80 to tighten gap)
+             drawText("VD", 80, 30, 15, "left", "#fff"); 
+        }
+
+        if (screenShake > 0) ctx.restore(); // Restore context if shook
+        requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
