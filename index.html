@@ -774,7 +774,8 @@
 
                     if (celebrationTimer > 200) { // 3 seconds
                         currentState = STATES.DATING_IFLY;
-                        krogerCelebration = false;
+                        celebrationActive = false; // FIXED: Reset flag
+                        celebrationTimer = 0; // FIXED: Reset timer
                     }
                 }
                 break;
@@ -882,6 +883,8 @@
                     ctx.fillStyle = "#1e8449"; ctx.fillRect(230, 50, 140, 40);
                     ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(230, 50, 140, 40);
                     drawText("Bourbon St", 300, 78, 12, "center", "white");
+                    
+                    drawText("JAZZ NIGHT", 300, 120, 15, "center", "#f1c40f");
                 }
 
                 drawWelcomeSign(300, 200, currentCity.name);
@@ -1045,8 +1048,6 @@
                 ctx.fillRect(0, 350, 200, 50); ctx.fillRect(400, 350, 200, 50);
 
                 // Characters in FOREFRONT (Drawn last, lower Y)
-                // Y=200 was too high, Y=300 is standard ground
-                // Let's place them at 280 to be clearly visible
                 if (!celebrationActive) {
                     drawMale(200, 280, 2.5, true); // KNEELING
                     drawFemale(400, 280, 2.5);
@@ -1076,28 +1077,6 @@
                     drawText("SHE SAID YES!", 300, 200, 40, "center", "#e91e63");
                     if (celebrationTimer > 200) { currentState = STATES.FUTURE_HOME; celebrationActive = false; celebrationTimer = 0; }
                 }
-                break;
-
-            case STATES.FUTURE_HOME:
-                ctx.fillStyle = "#87ceeb"; ctx.fillRect(0,0,600,400); // Sky
-                ctx.fillStyle = "#2ecc71"; ctx.fillRect(0, 300, 600, 100); // Grass
-                
-                // House
-                ctx.fillStyle = "#fdfefe"; ctx.fillRect(200, 200, 200, 150); // Body
-                ctx.fillStyle = "#a93226"; ctx.beginPath(); ctx.moveTo(180, 200); ctx.lineTo(300, 100); ctx.lineTo(420, 200); ctx.fill(); // Roof
-                // Door
-                ctx.fillStyle = "#5d4037"; ctx.fillRect(280, 280, 40, 70);
-                // Windows
-                ctx.fillStyle = "#87ceeb"; ctx.fillRect(220, 230, 40, 40); ctx.fillRect(340, 230, 40, 40);
-                
-                // Mailbox
-                ctx.fillStyle = "#555"; ctx.fillRect(450, 300, 5, 50); // Post
-                ctx.fillStyle = "#fff"; ctx.fillRect(440, 290, 30, 15); // Box
-                drawText("The DelBeckers", 450, 280, 8, "center", "#000");
-
-                drawText("LEVEL UNLOCKED:", 300, 50, 20, "center", "#000");
-                drawText("Our Next Chapter", 300, 80, 20, "center", "#000");
-                drawText("Press Right >", 300, 380, 10, "center", "#333");
                 break;
 
             case STATES.FINAL_HINT:
